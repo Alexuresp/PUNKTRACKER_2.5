@@ -1,8 +1,8 @@
 /* Automatic receive frequency correction for moving transmitters.
  *
- * The BK4819 hardware AFC reports the residual error in REG_6D.  Software
- * moves the RX synthesizer by that error so an off-frequency carrier is also
- * centred for the squelch detector.  Channel memory and TX stay unchanged.
+ * The BK4819 performs FM AFC in hardware.  REG_6D contains the signed current
+ * correction, which is displayed directly.  It must never be accumulated:
+ * the register already represents the complete offset from the RX reference.
  */
 
 #include "afc.h"
@@ -18,18 +18,14 @@
 #include <stdbool.h>
 
 enum {
-  AFC_SAMPLE_TICKS = 10,       /* Read AFC and RSSI every 100 ms. */
-  AFC_SETTLE_SAMPLES = 4,      /* Allow 400 ms after a synthesizer move. */
-  AFC_SIGNAL_HOLD_SAMPLES = 30,/* Keep correction through a 3 s fade. */
-  AFC_RSSI_MARGIN = 8,         /* Track slightly below the SQL threshold. */
-  AFC_MIN_RSSI = 36,           /* About -124 dBm; rejects the noise floor. */
-  AFC_RETUNE_THRESHOLD_HZ = 80,
+  AFC_SAMPLE_TICKS = 10,        /* Read AFC and RSSI every 100 ms. */
+  AFC_SIGNAL_HOLD_SAMPLES = 30, /* Keep the last value through a 3 s fade. */
+  AFC_RSSI_MARGIN = 8,          /* Measure slightly below the SQL threshold. */
+  AFC_MIN_RSSI = 36,            /* About -124 dBm; rejects the noise floor. */
 };
 
-static uint32_t sBaseFrequency;
 static int16_t sOffsetHz;
 static uint8_t sCountdown;
-static uint8_t sSettleSamples;
 static uint8_t sSignalLostSamples;
 static bool sOffsetValid;
 
@@ -38,16 +34,12 @@ static int16_t AFC_GetLimitHz(void)
   return gEeprom.AFC_RANGE == AFC_RANGE_MAX ? 10000 : 7000;
 }
 
-static void AFC_ClearState(bool Retune)
+static void AFC_ClearState(void)
 {
   const bool WasValid = sOffsetValid;
 
-  if (Retune && sOffsetHz != 0 && sBaseFrequency != 0) {
-    BK4819_SetFrequency(sBaseFrequency);
-  }
   sOffsetHz = 0;
   sCountdown = 0;
-  sSettleSamples = 0;
   sSignalLostSamples = 0;
   sOffsetValid = false;
   if (WasValid) {
@@ -85,19 +77,13 @@ static bool AFC_HasUsableSignal(void)
 
 void AFC_Process10ms(void)
 {
-  int32_t ResidualHz;
-  int32_t NewOffsetHz;
-  uint32_t Base = gRxVfo != 0 ? gRxVfo->pRX->Frequency : 0;
+  int32_t Sample;
+  int32_t Filtered;
+  int16_t DisplayOffset;
   const int16_t Limit = AFC_GetLimitHz();
 
-  if (Base != sBaseFrequency) {
-    /* Normal radio setup has already tuned the newly selected channel. */
-    AFC_ClearState(false);
-    sBaseFrequency = Base;
-  }
-
   if (!AFC_CanRun()) {
-    AFC_ClearState(gCurrentFunction != FUNCTION_TRANSMIT);
+    AFC_ClearState();
     return;
   }
 
@@ -111,46 +97,26 @@ void AFC_Process10ms(void)
     if (sSignalLostSamples < AFC_SIGNAL_HOLD_SAMPLES) {
       sSignalLostSamples++;
     } else {
-      AFC_ClearState(true);
+      AFC_ClearState();
     }
     return;
   }
   sSignalLostSamples = 0;
 
-  if (sSettleSamples != 0) {
-    sSettleSamples--;
-    return;
+  Sample = BK4819_GetAFCOffsetHz();
+  if (Sample > Limit) {
+    Sample = Limit;
+  } else if (Sample < -Limit) {
+    Sample = -Limit;
   }
 
-  ResidualHz = BK4819_GetAFCOffsetHz();
-  if (ResidualHz > Limit) {
-    ResidualHz = Limit;
-  } else if (ResidualHz < -Limit) {
-    ResidualHz = -Limit;
-  }
+  /* Display the absolute hardware correction, with only one-sample smoothing. */
+  Filtered = sOffsetValid ? ((int32_t)sOffsetHz + Sample) / 2 : Sample;
+  DisplayOffset =
+      (int16_t)((Filtered >= 0 ? Filtered + 5 : Filtered - 5) / 10 * 10);
 
-  /* Ignore tiny residual movement so modulation cannot make the PLL hunt. */
-  if (ResidualHz > -AFC_RETUNE_THRESHOLD_HZ &&
-      ResidualHz < AFC_RETUNE_THRESHOLD_HZ) {
-    if (!sOffsetValid) {
-      sOffsetValid = true;
-      gUpdateDisplay = true;
-    }
-    return;
-  }
-
-  NewOffsetHz = (int32_t)sOffsetHz + ResidualHz;
-  if (NewOffsetHz > Limit) {
-    NewOffsetHz = Limit;
-  } else if (NewOffsetHz < -Limit) {
-    NewOffsetHz = -Limit;
-  }
-  NewOffsetHz = (NewOffsetHz >= 0 ? NewOffsetHz + 5 : NewOffsetHz - 5) / 10 * 10;
-
-  if (NewOffsetHz != sOffsetHz) {
-    sOffsetHz = (int16_t)NewOffsetHz;
-    BK4819_SetFrequency((uint32_t)((int32_t)sBaseFrequency + sOffsetHz / 10));
-    sSettleSamples = AFC_SETTLE_SAMPLES;
+  if (!sOffsetValid || DisplayOffset != sOffsetHz) {
+    sOffsetHz = DisplayOffset;
     sOffsetValid = true;
     gUpdateDisplay = true;
   }
@@ -158,7 +124,7 @@ void AFC_Process10ms(void)
 
 void AFC_Reset(void)
 {
-  AFC_ClearState(true);
+  AFC_ClearState();
 }
 
 bool AFC_HasLock(void)
