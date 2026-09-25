@@ -373,9 +373,9 @@ void BK4819_SetModulation(ModulationType type) {
   BK4819_WriteRegister(0x3D, type == MOD_USB ? 0 : 0x2AAB);
 
   if (type == MOD_FM) {
-    /* Robzyl V1.5.4 factory value is 0xA3C1: range 4, speed 30,
-     * AFC enabled.  Range 3 gives the requested wider MAX capture. */
-    afcConfig = gEeprom.AFC_RANGE == AFC_RANGE_MAX ? 0x9BC1 : 0xA3C1;
+    /* Robzyl V1.5.4 uses direct range values; AFC 1 is its ISS setting.
+     * Keep its speed (30) and enabled state, using 2 for STD and 1 for MAX. */
+    afcConfig = gEeprom.AFC_RANGE == AFC_RANGE_MAX ? 0x8BC1 : 0x93C1;
   } else {
     afcConfig = BK4819_ReadRegister(BK4819_REG_73);
     afcConfig |= 1U << 4;
