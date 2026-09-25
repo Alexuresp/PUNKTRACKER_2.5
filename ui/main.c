@@ -272,7 +272,8 @@ void UI_DisplayMain(void) {
                            false, true);
     bool showAfc = vfoInfo.ModulationType == MOD_FM &&
                    i == gEeprom.RX_VFO &&
-                   (gCurrentFunction == FUNCTION_RECEIVE ||
+                   (gCurrentFunction == FUNCTION_FOREGROUND ||
+                    gCurrentFunction == FUNCTION_RECEIVE ||
                     gCurrentFunction == FUNCTION_INCOMING ||
                     gCurrentFunction == FUNCTION_MONITOR);
     if (showAfc) {
