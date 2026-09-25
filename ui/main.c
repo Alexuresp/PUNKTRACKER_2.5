@@ -281,7 +281,7 @@ void UI_DisplayMain(void) {
       } else {
         strcpy(String, "AFC:---");
       }
-      UI_PrintStringSmallest(String, 78, lineSubY, false, true);
+      UI_PrintStringSmallest(String, 80, lineSubY, false, true);
     } else if (vfoInfo.DTMF_DECODING_ENABLE) {
       UI_PrintStringSmallest("DTMF", 81, lineSubY, false, true);
     }
