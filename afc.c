@@ -9,6 +9,7 @@
 
 #include "afc.h"
 
+#include "app/scanner.h"
 #include "driver/bk4819.h"
 #include "functions.h"
 #include "misc.h"
