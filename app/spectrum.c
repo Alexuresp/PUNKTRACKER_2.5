@@ -1646,7 +1646,8 @@ static void UpdateStill() {
 }
 
 void change_DAC(uint8_t vol){
-  uint8_t  current_vol = (BK4819_ReadRegister(BK4819_REG_48) & 0b1111);
+  const uint16_t reg48 = BK4819_ReadRegister(BK4819_REG_48);
+  uint8_t current_vol = reg48 & 0x0F;
 #ifdef ENABLE_EMB_MENU
   if( d > ( (current_vol > vol) ? current_vol - vol : vol - current_vol ) ){  return;  }
 #endif
@@ -1654,13 +1655,15 @@ void change_DAC(uint8_t vol){
   if(vol>current_vol){      //++gain
     for(uint8_t i=1; i<=(vol-current_vol); i++){
       SYSTEM_DelayMs(1);
-      BK4819_WriteRegister(BK4819_REG_48, (0x0300+current_vol) + i);
+      BK4819_WriteRegister(BK4819_REG_48,
+                           (reg48 & 0xFFF0u) | (current_vol + i));
     }
   }
   else if(vol<current_vol){    //--gain
     for(uint8_t i=1; i<=(current_vol-vol); i++){
       SYSTEM_DelayMs(2);
-      BK4819_WriteRegister(BK4819_REG_48, (0x0300+current_vol) - i);
+      BK4819_WriteRegister(BK4819_REG_48,
+                           (reg48 & 0xFFF0u) | (current_vol - i));
     }
   }
   

@@ -494,7 +494,10 @@ void RADIO_SetupRegisters(bool bSwitchToFunction0) {
       gRxVfo->SquelchCloseGlitchThresh, gRxVfo->SquelchOpenGlitchThresh);
   BK4819_SelectFilter(Frequency);
   BK4819_ToggleGpioOut(BK4819_GPIO0_PIN28_RX_ENABLE, true);
-  BK4819_WriteRegister(BK4819_REG_48, 0xB3A8);
+  BK4819_WriteRegister(
+      BK4819_REG_48,
+      (11u << 12) | (gEeprom.AF_ATT << 10) |
+          (gEeprom.VOLUME_GAIN << 4) | gEeprom.DAC_GAIN);
 
   InterruptMask = 0 | BK4819_REG_3F_SQUELCH_FOUND | BK4819_REG_3F_SQUELCH_LOST;
 
