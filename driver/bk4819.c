@@ -281,10 +281,12 @@ const uint16_t listenBWRegValues[3] = {
     0x4048,             // 12.5
     0b0000000000011000, // was 0x205C, // 6.25
 };
+static BK4819_FilterBandwidth_t sCurrentFilterBandwidth = BK4819_FILTER_BW_WIDE;
 //stock 0x3028             // 25
 //experimental sat 0x3908
 
 void BK4819_SetFilterBandwidth(BK4819_FilterBandwidth_t Bandwidth) {
+  sCurrentFilterBandwidth = Bandwidth;
   BK4819_WriteRegister(BK4819_REG_43, listenBWRegValues[Bandwidth]);
 }
 
@@ -796,10 +798,11 @@ uint16_t BK4819_GetRSSI(void) {
 
 int32_t BK4819_GetAFCOffsetHz(void) {
   const int16_t Raw = (int16_t)BK4819_ReadRegister(BK4819_REG_6D);
+  const int32_t Multiplier =
+      sCurrentFilterBandwidth == BK4819_FILTER_BW_WIDE ? 50 : 25;
 
-  /* REG_6D is the signed residual frequency error measured by the FM AFC.
-   * One count is approximately 1000 / 291 Hz. */
-  return ((int32_t)Raw * 1000) / 291;
+  /* Robzyl V1.5.4 uses a bandwidth-dependent discriminator scale. */
+  return ((int32_t)Raw * Multiplier) / 11;
 }
 
 bool BK4819_GetFrequencyScanResult(uint32_t *pFrequency) {

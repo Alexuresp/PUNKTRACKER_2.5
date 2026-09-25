@@ -18,15 +18,11 @@
 #include <stdbool.h>
 
 enum {
-  AFC_SAMPLE_TICKS = 10,        /* Read AFC and RSSI every 100 ms. */
-  AFC_SIGNAL_HOLD_SAMPLES = 30, /* Keep the last value through a 3 s fade. */
-  AFC_RSSI_MARGIN = 8,          /* Measure slightly below the SQL threshold. */
-  AFC_MIN_RSSI = 36,            /* About -124 dBm; rejects the noise floor. */
+  AFC_SAMPLE_TICKS = 10, /* Read the hardware AFC every 100 ms. */
 };
 
 static int16_t sOffsetHz;
 static uint8_t sCountdown;
-static uint8_t sSignalLostSamples;
 static bool sOffsetValid;
 
 static int16_t AFC_GetLimitHz(void)
@@ -40,7 +36,6 @@ static void AFC_ClearState(void)
 
   sOffsetHz = 0;
   sCountdown = 0;
-  sSignalLostSamples = 0;
   sOffsetValid = false;
   if (WasValid) {
     gUpdateDisplay = true;
@@ -64,21 +59,9 @@ static bool AFC_CanRun(void)
          gCurrentFunction == FUNCTION_MONITOR;
 }
 
-static bool AFC_HasUsableSignal(void)
-{
-  uint16_t Minimum = gRxVfo->SquelchOpenRSSIThresh;
-
-  Minimum = Minimum > AFC_RSSI_MARGIN ? Minimum - AFC_RSSI_MARGIN : 0;
-  if (Minimum < AFC_MIN_RSSI) {
-    Minimum = AFC_MIN_RSSI;
-  }
-  return (BK4819_GetRSSI() >> 1) >= Minimum;
-}
-
 void AFC_Process10ms(void)
 {
   int32_t Sample;
-  int32_t Filtered;
   int16_t DisplayOffset;
   const int16_t Limit = AFC_GetLimitHz();
 
@@ -93,16 +76,6 @@ void AFC_Process10ms(void)
   }
   sCountdown = AFC_SAMPLE_TICKS - 1;
 
-  if (!AFC_HasUsableSignal()) {
-    if (sSignalLostSamples < AFC_SIGNAL_HOLD_SAMPLES) {
-      sSignalLostSamples++;
-    } else {
-      AFC_ClearState();
-    }
-    return;
-  }
-  sSignalLostSamples = 0;
-
   Sample = BK4819_GetAFCOffsetHz();
   if (Sample > Limit) {
     Sample = Limit;
@@ -110,10 +83,9 @@ void AFC_Process10ms(void)
     Sample = -Limit;
   }
 
-  /* Display the absolute hardware correction, with only one-sample smoothing. */
-  Filtered = sOffsetValid ? ((int32_t)sOffsetHz + Sample) / 2 : Sample;
-  DisplayOffset =
-      (int16_t)((Filtered >= 0 ? Filtered + 5 : Filtered - 5) / 10 * 10);
+  /* Robzyl displays the absolute hardware value immediately, without
+   * accumulating it and without waiting for the squelch to open. */
+  DisplayOffset = (int16_t)Sample;
 
   if (!sOffsetValid || DisplayOffset != sOffsetHz) {
     sOffsetHz = DisplayOffset;
