@@ -273,7 +273,8 @@ void UI_DisplayMain(void) {
     bool showAfc = vfoInfo.ModulationType == MOD_FM &&
                    i == gEeprom.RX_VFO &&
                    (gCurrentFunction == FUNCTION_RECEIVE ||
-                    gCurrentFunction == FUNCTION_INCOMING);
+                    gCurrentFunction == FUNCTION_INCOMING ||
+                    gCurrentFunction == FUNCTION_MONITOR);
     if (showAfc) {
       if (AFC_HasLock()) {
         sprintf(String, "AFC:%+d", AFC_GetOffsetHz());
