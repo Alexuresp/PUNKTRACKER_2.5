@@ -213,7 +213,8 @@ void SETTINGS_SaveSettings(void)
 	State[4] = gSetting_500TX;
 	State[5] = gSetting_ALL_TX;
 	State[6] = gSetting_ScrambleEnable;
-	State[7] = gEeprom.AFC_RANGE;
+	/* AFC uses bit 0; AF attenuation uses bits 2:1.  Old values 0/1 stay valid. */
+	State[7] = (gEeprom.AFC_RANGE & 1u) | ((gEeprom.AF_ATT & 3u) << 1);
 
 	EEPROM_WriteBuffer(0x0F40, State);
 	

@@ -708,7 +708,9 @@ void BOARD_EEPROM_Init(void)
 	gSetting_500TX          = (Data[4] < 2) ? Data[4] : false;
 	gSetting_ALL_TX          = (Data[5] < 2) ? Data[5] : 2;
 	gSetting_ScrambleEnable = (Data[6] < 2) ? Data[6] : true;
-	gEeprom.AFC_RANGE        = (Data[7] < 2) ? Data[7] : AFC_RANGE_STANDARD;
+	/* Packed setting: bit 0 = AFC range, bits 2:1 = AF attenuation. */
+	gEeprom.AFC_RANGE        = (Data[7] < 8) ? (Data[7] & 1u) : AFC_RANGE_STANDARD;
+	gEeprom.AF_ATT           = (Data[7] < 8) ? ((Data[7] >> 1) & 3u) : 0;
 
 	if (!gEeprom.VFO_OPEN) {
 		gEeprom.ScreenChannel[0] = gEeprom.MrChannel[0];

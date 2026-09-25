@@ -197,6 +197,7 @@ typedef struct {
 	uint16_t SkipK;
 	uint16_t EndK;
 	uint8_t AFC_RANGE;
+	uint8_t AF_ATT;
 	VFO_Info_t VfoInfo[2];
 } EEPROM_Config_t;
 

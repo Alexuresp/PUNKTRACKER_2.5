@@ -52,6 +52,7 @@ static const char MenuList[][8] = {
 	"TxPower",
     "Modulat",
 	"AFC",
+	"AF Att",
     "VOX",
     "ScnRev",
     "ScnPaus",
@@ -189,6 +190,10 @@ static const char gSubMenu_ROGER[5][4] = {
 static const char gSubMenu_AFC[2][8] = {
     "STD 7K",
     "MAX 10K",
+};
+
+static const char gSubMenu_AF_ATT[4][6] = {
+    "OFF", "-6dB", "-12dB", "-18dB",
 };
 
 /*static const char gSubMenu_RESET[2][4] = {
@@ -360,6 +365,10 @@ void UI_DisplayMenu(void) {
 
   case MENU_AFC:
     strcpy(String, gSubMenu_AFC[gSubMenuSelection]);
+    break;
+
+  case MENU_AF_ATT:
+    strcpy(String, gSubMenu_AF_ATT[gSubMenuSelection]);
     break;
 
   case MENU_SKIP_A:

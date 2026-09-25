@@ -392,7 +392,7 @@ void APP_StartListening(FUNCTION_Type_t Function, const bool resetAmFix) {
   BK4819_WriteRegister(
       BK4819_REG_48,
       (11u << 12) |    // ??? .. 0 to 15, doesn't seem to make any difference
-          (0u << 10) | // AF Rx Gain-1
+          (gEeprom.AF_ATT << 10) | // AF Rx Gain-1: 0/-6/-12/-18 dB
           (gEeprom.VOLUME_GAIN << 4) | // AF Rx Gain-2
           (gEeprom.DAC_GAIN << 0));    // AF DAC Gain (after Gain-1 and Gain-2)
 

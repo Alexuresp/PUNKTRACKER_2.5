@@ -138,6 +138,10 @@ int MENU_GetLimits(uint8_t Cursor, uint16_t *pMin, uint16_t *pMax) {
     *pMin = 0;
     *pMax = 1;
     break;
+  case MENU_AF_ATT:
+    *pMin = 0;
+    *pMax = 3;
+    break;
   case MENU_W_N:
     *pMin = 0;
     *pMax = 1;
@@ -493,6 +497,12 @@ void MENU_AcceptSetting(void) {
   case MENU_AFC:
     gEeprom.AFC_RANGE = gSubMenuSelection;
     AFC_Reset();
+    gRequestSaveSettings = true;
+    gFlagReconfigureVfos = true;
+    return;
+
+  case MENU_AF_ATT:
+    gEeprom.AF_ATT = gSubMenuSelection;
     gRequestSaveSettings = true;
     gFlagReconfigureVfos = true;
     return;
@@ -903,6 +913,10 @@ void MENU_ShowCurrentSetting(void) {
 
   case MENU_AFC:
     gSubMenuSelection = gEeprom.AFC_RANGE;
+    break;
+
+  case MENU_AF_ATT:
+    gSubMenuSelection = gEeprom.AF_ATT;
     break;
 	
 	case MENU_AMFT:
