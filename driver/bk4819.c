@@ -791,6 +791,14 @@ uint16_t BK4819_GetRSSI(void) {
   return BK4819_ReadRegister(BK4819_REG_67) & 0x01FF;
 }
 
+int32_t BK4819_GetAFCOffsetHz(void) {
+  const int16_t Raw = (int16_t)BK4819_ReadRegister(BK4819_REG_6D);
+
+  /* REG_6D is the signed residual frequency error measured by the FM AFC.
+   * One count is approximately 1000 / 291 Hz. */
+  return ((int32_t)Raw * 1000) / 291;
+}
+
 bool BK4819_GetFrequencyScanResult(uint32_t *pFrequency) {
   uint16_t High = BK4819_ReadRegister(BK4819_REG_0D);
   bool Finished = (High & 0x8000) == 0;

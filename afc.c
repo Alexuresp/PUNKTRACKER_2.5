@@ -1,10 +1,8 @@
-/*
- * Automatic receive frequency correction.
+/* Automatic receive frequency correction for moving transmitters.
  *
- * The BK4819 has an internal FM AFC, but its correction value is not exposed
- * by the documented register interface.  The frequency scanner is therefore
- * used as a frequency counter.  Three close measurements are required before
- * the RX synthesizer is moved.  Channel memory and TX frequency stay intact.
+ * The BK4819 FM demodulator performs the actual correction in hardware.
+ * REG_6D exposes its signed residual frequency error, so no frequency-scanner
+ * cycle is needed and normal modulated speech cannot prevent AFC lock.
  */
 
 #include "afc.h"
@@ -20,45 +18,25 @@
 #include <stdbool.h>
 
 enum {
-  AFC_SCAN_WAIT_TICKS = 22,       /* REG_32 uses the 0.2 second scan time. */
-  AFC_RETRY_TICKS = 5,
-  AFC_UPDATE_TICKS = 50,
-  AFC_STABLE_WINDOW_10HZ = 20,    /* Carrier readings must agree within 200 Hz. */
-  AFC_REQUIRED_HITS = 3,
+  AFC_SAMPLE_TICKS = 10, /* Read the hardware AFC every 100 ms. */
 };
 
-static uint32_t sBaseFrequency;
-static uint32_t sLastResult;
-static int16_t sOffset10Hz;
+static int16_t sOffsetHz;
 static uint8_t sCountdown;
-static uint8_t sStableHits;
-static bool sScanRunning;
 static bool sOffsetValid;
 
-static int16_t AFC_GetLimit10Hz(void)
+static int16_t AFC_GetLimitHz(void)
 {
-  return gEeprom.AFC_RANGE == AFC_RANGE_MAX ? 1000 : 700;
+  return gEeprom.AFC_RANGE == AFC_RANGE_MAX ? 10000 : 7000;
 }
 
-static void AFC_ClearState(bool Retune)
+static void AFC_ClearState(void)
 {
-  bool WasValid = sOffsetValid;
+  const bool WasValid = sOffsetValid;
 
-  if (sScanRunning && Retune) {
-    BK4819_DisableFrequencyScan();
-  }
-  sScanRunning = false;
+  sOffsetHz = 0;
   sCountdown = 0;
-  sStableHits = 0;
-  sLastResult = 0;
   sOffsetValid = false;
-
-  if (sOffset10Hz != 0) {
-    sOffset10Hz = 0;
-    if (Retune && sBaseFrequency != 0) {
-      BK4819_SetFrequency(sBaseFrequency);
-    }
-  }
   if (WasValid) {
     gUpdateDisplay = true;
   }
@@ -81,23 +59,13 @@ static bool AFC_CanRun(void)
 
 void AFC_Process10ms(void)
 {
-  uint32_t Result;
-  uint32_t Base;
-  int32_t Delta;
-
-  Base = gRxVfo != 0 ? gRxVfo->pRX->Frequency : 0;
-  if (Base != sBaseFrequency) {
-    /* RADIO_SetupRegisters() already tuned the new channel: only stop scan. */
-    if (sScanRunning) {
-      BK4819_DisableFrequencyScan();
-    }
-    AFC_ClearState(false);
-    sBaseFrequency = Base;
-  }
+  int32_t Sample;
+  int32_t Filtered;
+  int16_t DisplayOffset;
+  const int16_t Limit = AFC_GetLimitHz();
 
   if (!AFC_CanRun()) {
-    /* Never touch synthesizer registers after the transmitter has started. */
-    AFC_ClearState(gCurrentFunction != FUNCTION_TRANSMIT);
+    AFC_ClearState();
     return;
   }
 
@@ -105,72 +73,31 @@ void AFC_Process10ms(void)
     sCountdown--;
     return;
   }
+  sCountdown = AFC_SAMPLE_TICKS - 1;
 
-  if (!sScanRunning) {
-    BK4819_EnableFrequencyScan();
-    sScanRunning = true;
-    sCountdown = AFC_SCAN_WAIT_TICKS;
-    return;
+  Sample = BK4819_GetAFCOffsetHz();
+  if (Sample > Limit) {
+    Sample = Limit;
+  } else if (Sample < -Limit) {
+    Sample = -Limit;
   }
 
-  if (!BK4819_GetFrequencyScanResult(&Result)) {
-    sCountdown = AFC_RETRY_TICKS;
-    return;
-  }
+  /* REG_6D is already filtered by the hardware AFC loop.  A light software
+   * filter keeps speech modulation and the last display digit from jittering. */
+  Filtered = sOffsetValid ? ((int32_t)sOffsetHz * 3 + Sample) / 4 : Sample;
+  DisplayOffset =
+      (int16_t)((Filtered >= 0 ? Filtered + 5 : Filtered - 5) / 10 * 10);
 
-  BK4819_DisableFrequencyScan();
-  sScanRunning = false;
-
-  Delta = (int32_t)Result - (int32_t)sBaseFrequency;
-  const int16_t Limit = AFC_GetLimit10Hz();
-  if (Delta < -Limit || Delta > Limit) {
-    sStableHits = 0;
-    sCountdown = AFC_UPDATE_TICKS;
-    return;
-  }
-
-  if (sLastResult != 0) {
-    int32_t Difference = (int32_t)Result - (int32_t)sLastResult;
-    if (Difference < 0) {
-      Difference = -Difference;
-    }
-    sStableHits = Difference <= AFC_STABLE_WINDOW_10HZ
-                      ? (uint8_t)(sStableHits + 1)
-                      : 1;
-  } else {
-    sStableHits = 1;
-  }
-  sLastResult = Result;
-
-  if (sStableHits >= AFC_REQUIRED_HITS) {
-    int16_t NewOffset = (int16_t)Delta;
-    bool WasValid = sOffsetValid;
-
-    /* Suppress frequency-counter jitter once tracking has locked. */
-    if (sOffsetValid) {
-      NewOffset = (int16_t)((sOffset10Hz + NewOffset) / 2);
-    }
-
-    if (NewOffset != sOffset10Hz) {
-      sOffset10Hz = NewOffset;
-      BK4819_SetFrequency((uint32_t)((int32_t)sBaseFrequency + sOffset10Hz));
-      gUpdateDisplay = true;
-    }
+  if (!sOffsetValid || DisplayOffset != sOffsetHz) {
+    sOffsetHz = DisplayOffset;
     sOffsetValid = true;
-    if (!WasValid) {
-      gUpdateDisplay = true;
-    }
-    sStableHits = 0;
-    sLastResult = 0;
-    sCountdown = AFC_UPDATE_TICKS;
-  } else {
-    sCountdown = AFC_RETRY_TICKS;
+    gUpdateDisplay = true;
   }
 }
 
 void AFC_Reset(void)
 {
-  AFC_ClearState(true);
+  AFC_ClearState();
 }
 
 bool AFC_HasLock(void)
@@ -180,5 +107,5 @@ bool AFC_HasLock(void)
 
 int16_t AFC_GetOffsetHz(void)
 {
-  return (int16_t)(sOffset10Hz * 10);
+  return sOffsetHz;
 }
