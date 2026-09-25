@@ -53,8 +53,7 @@ static bool AFC_CanRun(void)
     return false;
   }
 
-  return gCurrentFunction == FUNCTION_FOREGROUND ||
-         gCurrentFunction == FUNCTION_INCOMING ||
+  return gCurrentFunction == FUNCTION_INCOMING ||
          gCurrentFunction == FUNCTION_RECEIVE ||
          gCurrentFunction == FUNCTION_MONITOR;
 }
