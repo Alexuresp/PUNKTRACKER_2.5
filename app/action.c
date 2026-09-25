@@ -23,6 +23,7 @@
 #include "scanner.h"
 #include "audio.h"
 #include "bsp/dp32g030/gpio.h"
+#include "driver/backlight.h"
 #include "driver/bk1080.h"
 #include "driver/bk4819.h"
 #include "driver/gpio.h"
@@ -35,13 +36,18 @@
 static void ACTION_FlashLight(void) {
   switch (gFlashLightState) {
   case 0:
-    gFlashLightState++;
+	if (gEeprom.BACKLIGHT == 0) {
+	BACKLIGHT_set_brightness(5);
+	} else {
     GPIO_SetBit(&GPIOC->DATA, GPIOC_PIN_FLASHLIGHT);
+	}
+	gFlashLightState++;
     break;
-  /* case 1:
+/*  case 1:
     gFlashLightState++;
     break; */
   default:
+	BACKLIGHT_TurnOff();
     gFlashLightState = 0;
     GPIO_ClearBit(&GPIOC->DATA, GPIOC_PIN_FLASHLIGHT);
   }
@@ -83,7 +89,7 @@ static void ACTION_Monitor(void) {
 
 void ACTION_Scan(bool bRestart) {
 #if defined(ENABLE_FMRADIO)
-  if (gFmRadioMode) {
+  if (gFmRadioMode && gScreenToDisplay == DISPLAY_FM) {
     if (gCurrentFunction != FUNCTION_RECEIVE &&
         gCurrentFunction != FUNCTION_MONITOR &&
         gCurrentFunction != FUNCTION_TRANSMIT) {
@@ -93,23 +99,16 @@ void ACTION_Scan(bool bRestart) {
         FM_PlayAndUpdate();
       } else {
         uint16_t Frequency;
-        if (bRestart) {
-          gFM_AutoScan = true;
-          gFM_ChannelPosition = 0;
-          FM_EraseChannels();
-          Frequency = gEeprom.FM_LowerLimit;
-        } else {
-          gFM_AutoScan = false;
-          gFM_ChannelPosition = 0;
-          Frequency = gEeprom.FM_FrequencyPlaying;
-        }
+        gFM_AutoScan = false;
+        gFM_ChannelPosition = 0;
+        Frequency = gEeprom.FM_FrequencyPlaying;
         BK1080_GetFrequencyDeviation(Frequency);
         FM_Tune(Frequency, 1, bRestart);
       }
     }
   } else
 #endif
-      if (gAppToDisplay != APP_SCANNER) {
+      if (gScreenToDisplay != DISPLAY_SCANNER) {
     RADIO_SelectVfos();
     if (IS_NOT_NOAA_CHANNEL(gRxVfo->CHANNEL_SAVE)) {
       GUI_SelectNextDisplay(DISPLAY_MAIN);
@@ -131,10 +130,13 @@ void ACTION_Vox(void) {
 
 #if defined(ENABLE_TX1750)
 static void ACTION_AlarmOr1750(bool b1750) {
-  gInputBoxIndex = 0;
+	gEeprom.DUAL_WATCH = DUAL_WATCH_OFF;
+	gFlashLightState = 2;
+	gFlashLightBlinkCounter = 4095;
+/*  gInputBoxIndex = 0;
   gAlarmState = ALARM_STATE_TX1750;
   gFlagPrepareTX = true;
-  gRequestDisplayScreen = DISPLAY_MAIN;
+  gRequestDisplayScreen = DISPLAY_MAIN;*/
 }
 #endif
 
@@ -163,7 +165,7 @@ void ACTION_Handle(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) {
   uint8_t Short;
   uint8_t Long;
 
-  if (gScreenToDisplay == DISPLAY_MAIN && gDTMF_InputMode) {
+  /*if (gScreenToDisplay == DISPLAY_MAIN && gDTMF_InputMode) {
     if (Key == KEY_SIDE1 && !bKeyHeld && bKeyPressed) {
       gBeepToPlay = BEEP_1KHZ_60MS_OPTIONAL;
       if (gDTMF_InputIndex) {
@@ -180,7 +182,7 @@ void ACTION_Handle(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) {
     }
     gPttWasReleased = true;
     return;
-  }
+  }*/
 
   if (Key == KEY_SIDE1) {
     Short = gEeprom.KEY_1_SHORT_PRESS_ACTION;

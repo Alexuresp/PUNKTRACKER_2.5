@@ -15,6 +15,7 @@
  */
 
 #include "app/dtmf.h"
+#include "afc.h"
 #include <string.h>
 #if defined(ENABLE_FMRADIO)
 #include "app/fm.h"
@@ -51,8 +52,8 @@ void FUNCTION_Init(void) {
     gCurrentCodeType = CODE_TYPE_CONTINUOUS_TONE;
   }
   gDTMF_RequestPending = false;
-  gDTMF_WriteIndex = 0;
-  memset(gDTMF_Received, 0, sizeof(gDTMF_Received));
+//  gDTMF_WriteIndex = 0;
+//  memset(gDTMF_Received, 0, sizeof(gDTMF_Received));
   g_CxCSS_TAIL_Found = false;
   g_CDCSS_Lost = false;
   g_CTCSS_Lost = false;
@@ -86,9 +87,9 @@ void FUNCTION_Select(FUNCTION_Type_t Function) {
 
   switch (Function) {
   case FUNCTION_FOREGROUND:
-    if (gDTMF_ReplyState != DTMF_REPLY_NONE) {
+/*    if (gDTMF_ReplyState != DTMF_REPLY_NONE) {
       RADIO_PrepareCssTX();
-    }
+    }*/
     if (PreviousFunction == FUNCTION_TRANSMIT) {
       gVFO_RSSI_Level[0] = 0;
       gVFO_RSSI_Level[1] = 0;
@@ -100,10 +101,10 @@ void FUNCTION_Select(FUNCTION_Type_t Function) {
       gFM_RestoreCountdown = 500;
     }
 #endif
-    if (gDTMF_CallState == DTMF_CALL_STATE_CALL_OUT ||
+/*    if (gDTMF_CallState == DTMF_CALL_STATE_CALL_OUT ||
         gDTMF_CallState == DTMF_CALL_STATE_RECEIVED) {
       gDTMF_AUTO_RESET_TIME = 1 + (gEeprom.DTMF_AUTO_RESET_TIME * 2);
-    }
+    }*/
     return;
 
   case FUNCTION_MONITOR:
@@ -112,17 +113,25 @@ void FUNCTION_Select(FUNCTION_Type_t Function) {
     break;
 
   case FUNCTION_POWER_SAVE:
-    gBatterySave = gEeprom.BATTERY_SAVE * 10;
+  if (gEeprom.BATTERY_SAVE == 5) {
+      gBatterySave = gEeprom.BATTERY_SAVE * 50;
+  } else {
+	  gBatterySave = gEeprom.BATTERY_SAVE * 10;
+  }
     gRxIdleMode = true;
     BK4819_DisableVox();
     BK4819_Sleep();
+#ifdef ENABLE_PARTISAN
     BK4819_ToggleGpioOut(BK4819_GPIO0_PIN28_RX_ENABLE, false);
+#endif
     gBatterySaveCountdownExpired = false;
     gUpdateStatus = true;
     GUI_SelectNextDisplay(DISPLAY_MAIN);
     return;
 
   case FUNCTION_TRANSMIT:
+    /* Stop the AFC frequency counter before any transmitter setup. */
+    AFC_Reset();
 #if defined(ENABLE_FMRADIO)
     if (gFmRadioMode) {
       BK1080_Init(0, false);
@@ -131,22 +140,24 @@ void FUNCTION_Select(FUNCTION_Type_t Function) {
 
     GUI_DisplayScreen();
     RADIO_enableTX();
+#ifdef ENABLE_PARTISAN
     BK4819_ToggleGpioOut(BK4819_GPIO5_PIN1_RED, true);
+#endif
 
-    DTMF_Reply();
+//    DTMF_Reply();
 
 #if defined(ENABLE_TX1750)
-    if (gAlarmState != ALARM_STATE_OFF) {
+/*    if (gAlarmState != ALARM_STATE_OFF) {
       if (gAlarmState == ALARM_STATE_TX1750) {
-        BK4819_TransmitTone(true, 1750);
+        BK4819_TransmitTone(true, gEeprom.DTMF_PRELOAD_TIME * 50);
       }
       SYSTEM_DelayMs(2);
       GPIO_SetBit(&GPIOC->DATA, GPIOC_PIN_AUDIO_PATH);
       gEnableSpeaker = true;
       break;
-    }
+    }*/
 #endif
-    if (gCurrentVfo->SCRAMBLING_TYPE && gSetting_ScrambleEnable) {
+    if (gCurrentVfo->SCRAMBLING_TYPE) {
       BK4819_EnableScramble(gCurrentVfo->SCRAMBLING_TYPE - 1U);
     } else {
       BK4819_DisableScramble();

@@ -14,14 +14,22 @@
  *     limitations under the License.
  */
 
-#ifndef DRIVER_BACKLIGHT_H
+//#ifndef DRIVER_BACKLIGHT_H
 #define DRIVER_BACKLIGHT_H
 
 #include <stdint.h>
 
+#include <stdbool.h>
+#define BACKLIGHT_MAX_BRIGHTNESS  100
+//#define BACKLIGHT_H
+void     BACKLIGHT_init(void);
+void     BACKLIGHT_set_brightness(unsigned int brightness);
+//#endif
+
 extern uint8_t gBacklightCountdown;
 
 void BACKLIGHT_TurnOn(void);
+void BACKLIGHT_TurnOff(void);
 
-#endif
+//#endif
 

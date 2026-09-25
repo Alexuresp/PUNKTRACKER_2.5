@@ -21,6 +21,7 @@
 #include "app/fm.h"
 #endif
 #include "board.h"
+#include "afc.h"
 #include "bsp/dp32g030/gpio.h"
 #include "bsp/dp32g030/portcon.h"
 #include "bsp/dp32g030/saradc.h"
@@ -29,6 +30,7 @@
 #if defined(ENABLE_FMRADIO)
 #include "driver/bk1080.h"
 #endif
+#include "driver/backlight.h"
 #include "driver/bk4819.h"
 #include "driver/crc.h"
 #include "driver/eeprom.h"
@@ -504,6 +506,7 @@ void BOARD_Init(void)
 {
 	BOARD_PORTCON_Init();
 	BOARD_GPIO_Init();
+	BACKLIGHT_init();
 	BOARD_ADC_Init();
 	ST7565_Init();
 #if defined(ENABLE_FMRADIO)
@@ -512,6 +515,35 @@ void BOARD_Init(void)
 #if defined(ENABLE_AIRCOPY) || defined(ENABLE_UART)
 	CRC_Init();
 #endif
+}
+
+void BOARD_ReadSkip(void)
+{
+	uint16_t Data[8];
+	
+	EEPROM_ReadBuffer(0x1C00, Data, 16);
+	gEeprom.SkipC = Data[0];
+	gEeprom.EndC  = Data[1];
+	gEeprom.SkipD = Data[2];
+	gEeprom.EndD  = Data[3];
+	
+	EEPROM_ReadBuffer(0x1C40, Data, 16);
+	gEeprom.SkipE = Data[0];
+	gEeprom.EndE  = Data[1];
+	gEeprom.SkipF = Data[2];
+	gEeprom.EndF = 	Data[3];
+	
+	EEPROM_ReadBuffer(0x1C80, Data, 16);
+	gEeprom.SkipG = Data[0];
+	gEeprom.EndG  = Data[1];
+	gEeprom.SkipH = Data[2];
+	gEeprom.EndH = 	Data[3];
+	
+	EEPROM_ReadBuffer(0x1CC0, Data, 16);
+	gEeprom.SkipJ = Data[0];
+	gEeprom.EndJ  = Data[1];
+	gEeprom.SkipK = Data[2];
+	gEeprom.EndK = 	Data[3];
 }
 
 void BOARD_EEPROM_Init(void)
@@ -536,7 +568,7 @@ void BOARD_EEPROM_Init(void)
 	EEPROM_ReadBuffer(0x0E78, Data, 8);
 	gEeprom.CHANNEL_DISPLAY_MODE  = (Data[1] < 4) ? Data[1] : MDF_FREQUENCY;
 	gEeprom.CROSS_BAND_RX_TX      = (Data[2] < 3) ? Data[2] : CROSS_BAND_OFF;
-	gEeprom.BATTERY_SAVE          = (Data[3] < 5) ? Data[3] : 4;
+	gEeprom.BATTERY_SAVE          = (Data[3] < 6) ? Data[3] : 4;
 	gEeprom.DUAL_WATCH            = (Data[4] < 3) ? Data[4] : DUAL_WATCH_CHAN_A;
 	gEeprom.BACKLIGHT             = (Data[5] < 7) ? Data[5] : 6;
 	gEeprom.TAIL_NOTE_ELIMINATION = (Data[6] < 2) ? Data[6] : true;
@@ -561,10 +593,10 @@ void BOARD_EEPROM_Init(void)
 	} FM;
 
 	EEPROM_ReadBuffer(0x0E88, &FM, 8);
-	gEeprom.FM_LowerLimit = 760;
+	gEeprom.FM_LowerLimit = 875;
 	gEeprom.FM_UpperLimit = 1080;
 	if (FM.SelectedFrequency < gEeprom.FM_LowerLimit || FM.SelectedFrequency > gEeprom.FM_UpperLimit) {
-		gEeprom.FM_SelectedFrequency = 760;
+		gEeprom.FM_SelectedFrequency = 875;
 	} else {
 		gEeprom.FM_SelectedFrequency = FM.SelectedFrequency;
 	}
@@ -586,7 +618,7 @@ void BOARD_EEPROM_Init(void)
 	gEeprom.KEY_2_LONG_PRESS_ACTION  = (Data[4] < 9) ? Data[4] : 6;
 	gEeprom.SCAN_RESUME_MODE         = (Data[5] < 3) ? Data[5] : SCAN_RESUME_CO;
 	gEeprom.AUTO_KEYPAD_LOCK         = (Data[6] < 2) ? Data[6] : true;
-	gEeprom.POWER_ON_DISPLAY_MODE    = (Data[7] < 3) ? Data[7] : POWER_ON_DISPLAY_MODE_VOLTAGE;
+	gEeprom.POWER_ON_DISPLAY_MODE    = (Data[7] < 4) ? Data[7] : POWER_ON_DISPLAY_MODE_FM;
 
 	// 0E98..0E9F
 	EEPROM_ReadBuffer(0x0E98, Data, 8);
@@ -598,7 +630,7 @@ void BOARD_EEPROM_Init(void)
 
 	// 0EA8..0EAF
 	EEPROM_ReadBuffer(0x0EA8, Data, 8);
-	gEeprom.ROGER                          = (Data[1] <  3) ? Data[1] : ROGER_MODE_OFF;
+	gEeprom.ROGER                          = (Data[1] <  5) ? Data[1] : ROGER_MODE_OFF;
 	gEeprom.REPEATER_TAIL_TONE_ELIMINATION = (Data[2] < 11) ? Data[2] : 0;
 	gEeprom.TX_VFO                     = (Data[3] <  2) ? Data[3] : 0;
 
@@ -608,8 +640,8 @@ void BOARD_EEPROM_Init(void)
 	gEeprom.DTMF_SEPARATE_CODE           = DTMF_ValidateCodes((char *)(Data + 1), 1) ? Data[1] : '*';
 	gEeprom.DTMF_GROUP_CALL_CODE         = DTMF_ValidateCodes((char *)(Data + 2), 1) ? Data[2] : '#';
 	gEeprom.DTMF_DECODE_RESPONSE         = (Data[3] <   4) ? Data[3] : 0;
-	gEeprom.DTMF_AUTO_RESET_TIME         = (Data[4] <  61) ? Data[4] : 5;
-	gEeprom.DTMF_PRELOAD_TIME            = (Data[5] < 101) ? Data[5] * 10 : 300;
+	gEeprom.DTMF_AUTO_RESET_TIME         = (Data[4] < 61) ? Data[4] : 5;
+	gEeprom.DTMF_PRELOAD_TIME            = (Data[5] < 101) ? Data[5] : 300;
 	gEeprom.DTMF_FIRST_CODE_PERSIST_TIME = (Data[6] < 101) ? Data[6] * 10 : 100;
 	gEeprom.DTMF_HASH_CODE_PERSIST_TIME  = (Data[7] < 101) ? Data[7] * 10 : 100;
 
@@ -676,6 +708,7 @@ void BOARD_EEPROM_Init(void)
 	gSetting_500TX          = (Data[4] < 2) ? Data[4] : false;
 	gSetting_ALL_TX          = (Data[5] < 2) ? Data[5] : 2;
 	gSetting_ScrambleEnable = (Data[6] < 2) ? Data[6] : true;
+	gEeprom.AFC_RANGE        = (Data[7] < 2) ? Data[7] : AFC_RANGE_STANDARD;
 
 	if (!gEeprom.VFO_OPEN) {
 		gEeprom.ScreenChannel[0] = gEeprom.MrChannel[0];
@@ -696,6 +729,8 @@ void BOARD_EEPROM_Init(void)
 	}
 
 	bHasCustomAesKey = false;
+	
+	BOARD_ReadSkip();
 }
 
 void BOARD_EEPROM_LoadCalibration(void)
@@ -776,7 +811,10 @@ void BOARD_FactoryReset(bool bIsAll)
 			gRxVfo->ConfigTX.Frequency = Frequency;
 			gRxVfo->Band = FREQUENCY_GetBand(Frequency);
 			SETTINGS_SaveChannel(MR_CHANNEL_FIRST + i, 0, gRxVfo, 2);
+//			gEeprom.POWER_ON_DISPLAY_MODE = POWER_ON_DISPLAY_MODE_FULL_SCREEN;
+//			FUNCTION_Select(FUNCTION_POWER_SAVE);
+			BACKLIGHT_TurnOff();
+			gReducedService = true;
 		}
 	}
 }
-

@@ -45,7 +45,7 @@ uint16_t gFM_RestoreCountdown;
 
 bool FM_CheckValidChannel(uint8_t Channel)
 {
-	if (Channel < 20 && (gFM_Channels[Channel] >= 760 && gFM_Channels[Channel] < 1080)) {
+	if (Channel < 20 && (gFM_Channels[Channel] >= 875 && gFM_Channels[Channel] < 1080)) {
 		return true;
 	}
 
@@ -95,6 +95,7 @@ void FM_TurnOff(void)
 	GPIO_ClearBit(&GPIOC->DATA, GPIOC_PIN_AUDIO_PATH);
 	gEnableSpeaker = false;
 	BK1080_Init(0, false);
+	fmoff = false;
 	gUpdateStatus = true;
 }
 
@@ -291,6 +292,10 @@ static void FM_Key_DIGITS(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 			break;
 
 		case KEY_1:
+			ACTION_Scan(false);
+			break;
+
+		case KEY_3:
 			gEeprom.FM_IsMrMode = !gEeprom.FM_IsMrMode;
 			if (!FM_ConfigureChannelState()) {
 				BK1080_SetFrequency(gEeprom.FM_FrequencyPlaying);
@@ -299,14 +304,16 @@ static void FM_Key_DIGITS(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld)
 				gBeepToPlay = BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL;
 			}
 			break;
-
-		case KEY_2:
-			ACTION_Scan(true);
+			
+		case KEY_8:
+			fmoff = true;
+			fmofft = 0;
 			break;
-
-		case KEY_3:
+			
+/*		case KEY_7:
+			gRequestDisplayScreen = DISPLAY_MAIN;
 			ACTION_Scan(false);
-			break;
+			break;*/
 
 		default:
 			gBeepToPlay = BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL;

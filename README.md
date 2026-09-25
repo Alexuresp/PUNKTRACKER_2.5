@@ -1,4 +1,15 @@
 # Open reimplementation of the Quan Sheng UV K5 v2.1.27 firmware
+Modified by Lightbringer source code of PUNKTRACKER II
+
+The FM receiver includes automatic Doppler correction.  While a signal is
+being received, the BK4819 frequency counter validates the carrier position,
+retunes RX without changing the stored channel or TX frequency, and shows the
+current `AFC:+/-...` correction in hertz on the main screen.  The displayed
+value is always relative to the stored RX channel frequency, so it can also be
+used to observe a transmitter's characteristic frequency error.
+
+The `AFC` menu selects the correction range: `STD 7K` (+/-7 kHz) or
+`MAX 10K` (+/-10 kHz).  The selection is stored in EEPROM.
 
 This repository is a preservation project of the UV K5 v2.1.27 firmware.
 It is dedicated to understanding how the radio works and help developers making their own customisations/fixes/etc.
@@ -78,4 +89,3 @@ You may obtain a copy of the License at
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-

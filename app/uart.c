@@ -26,6 +26,7 @@
 #include "bsp/dp32g030/dma.h"
 #include "bsp/dp32g030/gpio.h"
 #include "driver/aes.h"
+#include "driver/backlight.h"
 #include "driver/bk4819.h"
 #include "driver/crc.h"
 #include "driver/eeprom.h"
@@ -257,7 +258,7 @@ static void CMD_0514(const uint8_t *pBuffer) {
 #if defined(ENABLE_FMRADIO)
   gFmRadioCountdown = 4;
 #endif
-  GPIO_ClearBit(&GPIOB->DATA, GPIOB_PIN_BACKLIGHT);
+  BACKLIGHT_TurnOff();
   SendVersion();
 }
 
@@ -407,14 +408,14 @@ static void CMD_052F(const uint8_t *pBuffer) {
   gEeprom.VfoInfo[0].FrequencyReverse = false;
   gEeprom.VfoInfo[0].pRX = &gEeprom.VfoInfo[0].ConfigRX;
   gEeprom.VfoInfo[0].pTX = &gEeprom.VfoInfo[0].ConfigTX;
-  gEeprom.VfoInfo[0].OFFSET_DIR = FREQUENCY_DEVIATION_OFF;
+  gEeprom.VfoInfo[0].FREQUENCY_DEVIATION_SETTING = FREQUENCY_DEVIATION_OFF;
   gEeprom.VfoInfo[0].DTMF_PTT_ID_TX_MODE = PTT_ID_OFF;
   gEeprom.VfoInfo[0].DTMF_DECODING_ENABLE = false;
   if (gCurrentFunction == FUNCTION_POWER_SAVE) {
     FUNCTION_Select(FUNCTION_FOREGROUND);
   }
   Timestamp = pCmd->Timestamp;
-  GPIO_ClearBit(&GPIOB->DATA, GPIOB_PIN_BACKLIGHT);
+  BACKLIGHT_TurnOff();
 
   SendVersion();
 }

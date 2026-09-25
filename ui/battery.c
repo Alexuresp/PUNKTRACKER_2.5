@@ -17,9 +17,15 @@
 #include "battery.h"
 #include "../driver/st7565.h"
 #include "../helper/battery.h"
+#include "../external/printf/printf.h"
+#include "helper.h"
+/*#include <stdio.h>
+#include <string.h>*/
+
+static char String[32];
 
 void UI_DisplayBattery(uint8_t Level) {
-  const uint8_t START = 115;
+/*  const uint8_t START = 115;
   const uint8_t WORK_START = START + 2;
   const uint8_t WORK_WIDTH = 10;
   const uint8_t WORK_END = WORK_START + WORK_WIDTH;
@@ -53,5 +59,8 @@ void UI_DisplayBattery(uint8_t Level) {
     gStatusLine[WORK_START + 6] &= 0b11111101;
     gStatusLine[WORK_START + 7] &= 0b11111101;
     gStatusLine[WORK_START + 8] &= 0b11111101;
-  }
+  }*/
+  sprintf(String, "%d.%02dV", gBatteryVoltageAverage / 100,
+            gBatteryVoltageAverage % 100);
+	UI_PrintStringSmallest(String, 108, 0, true, true);
 }

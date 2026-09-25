@@ -134,6 +134,8 @@ extern bool gFlagSaveSettings;
 extern bool gFlagSaveChannel;
 #if defined(ENABLE_FMRADIO)
 extern bool gFlagSaveFM;
+extern bool fmoff;
+extern uint8_t fmofft;
 #endif
 extern uint8_t gDTMF_RequestPending;
 extern bool g_CDCSS_Lost;
@@ -162,6 +164,17 @@ extern uint8_t gPttDebounceCounter;
 extern uint8_t gMenuListCount;
 extern uint8_t gBackupCROSS_BAND_RX_TX;
 extern uint8_t gScanDelay;
+extern uint8_t NextCh;
+extern uint8_t amft;
+extern bool slowsc;
+/*extern bool Ring;
+extern uint8_t RingCountdown;*/
+#if defined(ENABLE_MEMSKIP)
+/*extern uint16_t SkipE;
+extern uint16_t EndE;
+extern uint16_t SkipF;
+extern uint16_t EndF;*/
+#endif
 #if defined(ENABLE_AIRCOPY)
 extern uint8_t gAircopySendCountdown;
 #endif

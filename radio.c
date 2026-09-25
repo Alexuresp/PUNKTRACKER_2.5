@@ -43,11 +43,11 @@ DCS_CodeType_t gSelectedCodeType;
 uint8_t gSelectedCode;
 
 STEP_Setting_t gStepSetting;
-UpconverterTypes gUpconverter;
 
 VfoState_t VfoState[2];
 
-const char *modulationTypeOptions[5] = {" FM", " AM", "SSB", "BYP", "RAW"};
+//const char *modulationTypeOptions[5] = {" FM", " AM", "SSB", "BYP", "RAW"};
+const char *modulationTypeOptions[3] = {" FM", " AM", "SSB"};
 const char *vfoStateNames[] = {
     "NORMAL", "BUSY", "BAT LOW", "DISABLE", "TIMEOUT", "ALARM", "VOL HIGH",
 };
@@ -214,11 +214,11 @@ void RADIO_ConfigureChannel(uint8_t VFO, uint32_t Arg) {
     if (Tmp > 2) {
       Tmp = 0;
     }
-    gEeprom.VfoInfo[VFO].OFFSET_DIR = Tmp;
+    gEeprom.VfoInfo[VFO].FREQUENCY_DEVIATION_SETTING = Tmp;
     gEeprom.VfoInfo[VFO].AM_CHANNEL_MODE = (Data[3] >> 4) & 0b111;
 
     Tmp = Data[6];
-    if (Tmp > STEP_100_0kHz) {
+    if (Tmp > STEP_50_0kHz) {
       Tmp = STEP_0_01kHz;
     }
     gEeprom.VfoInfo[VFO].STEP_SETTING = Tmp;
@@ -235,7 +235,7 @@ void RADIO_ConfigureChannel(uint8_t VFO, uint32_t Arg) {
     Tmp = Data[0];
     switch (gEeprom.VfoInfo[VFO].ConfigRX.CodeType) {
     case CODE_TYPE_CONTINUOUS_TONE:
-      if (Tmp >= 50) {
+      if (Tmp >= 52) {
         Tmp = 0;
       }
       break;
@@ -255,7 +255,7 @@ void RADIO_ConfigureChannel(uint8_t VFO, uint32_t Arg) {
     Tmp = Data[1];
     switch (gEeprom.VfoInfo[VFO].ConfigTX.CodeType) {
     case CODE_TYPE_CONTINUOUS_TONE:
-      if (Tmp >= 50) {
+      if (Tmp >= 52) {
         Tmp = 0;
       }
       break;
@@ -319,8 +319,8 @@ void RADIO_ConfigureChannel(uint8_t VFO, uint32_t Arg) {
         FrequencyBandTable[Band].lower);
   }
 
-  if (Frequency >= 10800000 && Frequency <= 13599990) {
-    gEeprom.VfoInfo[VFO].OFFSET_DIR = FREQUENCY_DEVIATION_OFF;
+  if (Frequency >= 11800000 && Frequency <= 13699990) {
+    gEeprom.VfoInfo[VFO].FREQUENCY_DEVIATION_SETTING = FREQUENCY_DEVIATION_OFF;
   } else if (!IS_MR_CHANNEL(Channel)) {
     Frequency =
         FREQUENCY_FloorToStep(gEeprom.VfoInfo[VFO].FREQUENCY_OF_DEVIATION,
@@ -330,7 +330,11 @@ void RADIO_ConfigureChannel(uint8_t VFO, uint32_t Arg) {
   RADIO_ApplyOffset(pRadio);
   memset(gEeprom.VfoInfo[VFO].Name, 0, sizeof(gEeprom.VfoInfo[VFO].Name));
   if (IS_MR_CHANNEL(Channel)) {
-    GetChannelName(Channel, gEeprom.VfoInfo[VFO].Name);
+    // 16 bytes allocated but only 12 used
+    EEPROM_ReadBuffer(0x0F50 + (Channel * 0x10), gEeprom.VfoInfo[VFO].Name + 0,
+                      8);
+    EEPROM_ReadBuffer(0x0F58 + (Channel * 0x10), gEeprom.VfoInfo[VFO].Name + 8,
+                      2);
   }
 
   if (!gEeprom.VfoInfo[VFO].FrequencyReverse) {
@@ -399,7 +403,7 @@ void RADIO_ConfigureSquelchAndOutputPower(VFO_Info_t *pInfo) {
 }
 
 uint32_t GetOffsetedF(VFO_Info_t *pInfo, uint32_t f) {
-  switch (pInfo->OFFSET_DIR) {
+  switch (pInfo->FREQUENCY_DEVIATION_SETTING) {
   case FREQUENCY_DEVIATION_OFF:
     break;
   case FREQUENCY_DEVIATION_ADD:
@@ -530,7 +534,7 @@ void RADIO_SetupRegisters(bool bSwitchToFunction0) {
                         BK4819_REG_3F_SQUELCH_LOST;
         break;
       }
-      if (gRxVfo->SCRAMBLING_TYPE == 0 || !gSetting_ScrambleEnable) {
+      if (gRxVfo->SCRAMBLING_TYPE == 0) {
         BK4819_DisableScramble();
       } else {
         BK4819_EnableScramble(gRxVfo->SCRAMBLING_TYPE - 1);
@@ -610,11 +614,11 @@ void RADIO_enableTX(void) {
   }
 }
 
-void RADIO_disableTX(void) {
-  BK4819_SetupPowerAmplifier(0, 0);                          //
-  BK4819_ToggleGpioOut(BK4819_GPIO1_PIN29_PA_ENABLE, false); // PA off
-  BK4819_ToggleGpioOut(BK4819_GPIO5_PIN1_RED, false);        // LED off
-  RADIO_SetupRegisters(true);
+void RADIO_disableTX(void)
+{
+	BK4819_SetupPowerAmplifier(0, 0);                            //
+	BK4819_ToggleGpioOut(BK4819_GPIO1_PIN29_PA_ENABLE, false);    // PA off
+	BK4819_ToggleGpioOut(BK4819_GPIO5_PIN1_RED, false);           // LED off
 }
 
 void RADIO_SetVfoState(VfoState_t State) {
@@ -657,7 +661,9 @@ void RADIO_PrepareTX(void) {
   }
   RADIO_SelectCurrentVfo();
 #if defined(ENABLE_TX1750)
-  if (gAlarmState == ALARM_STATE_OFF || gAlarmState == ALARM_STATE_TX1750) {
+  if (gAlarmState == ALARM_STATE_OFF
+      || gAlarmState == ALARM_STATE_TX1750
+  ) {
 #else
   if (1) {
 #endif
@@ -682,12 +688,12 @@ void RADIO_PrepareTX(void) {
     gAlarmState = ALARM_STATE_OFF;
 #endif
     AUDIO_PlayBeep(BEEP_500HZ_60MS_DOUBLE_BEEP_OPTIONAL);
-    gDTMF_ReplyState = DTMF_REPLY_NONE;
+//    gDTMF_ReplyState = DTMF_REPLY_NONE;
     return;
   }
 
 Skip:
-  if (gDTMF_ReplyState == DTMF_REPLY_ANI) {
+/*  if (gDTMF_ReplyState == DTMF_REPLY_ANI) {
     if (gDTMF_CallMode == DTMF_CALL_MODE_DTMF) {
       gDTMF_IsTx = true;
       gDTMF_CallState = DTMF_CALL_STATE_NONE;
@@ -696,7 +702,7 @@ Skip:
       gDTMF_CallState = DTMF_CALL_STATE_CALL_OUT;
       gDTMF_IsTx = false;
     }
-  }
+  }*/
   FUNCTION_Select(FUNCTION_TRANSMIT);
 #if defined(ENABLE_TX1750)
   if (gAlarmState == ALARM_STATE_OFF) {
@@ -710,7 +716,7 @@ Skip:
   gTxTimeoutReached = false;
   gFlagEndTransmission = false;
   gRTTECountdown = 0;
-  gDTMF_ReplyState = DTMF_REPLY_NONE;
+//  gDTMF_ReplyState = DTMF_REPLY_NONE;
 }
 
 void RADIO_EnableCxCSS(void) {
@@ -736,15 +742,34 @@ void RADIO_PrepareCssTX(void) {
   RADIO_SetupRegisters(true);
 }
 
+void RADIO_SendCssTail(void)
+{
+    switch (gCurrentVfo->pTX->CodeType) {
+    case CODE_TYPE_DIGITAL:
+    case CODE_TYPE_REVERSE_DIGITAL:
+        BK4819_PlayCDCSSTail();
+        break;
+    default:
+        BK4819_PlayCTCSSTail();
+        break;
+    }
+
+    SYSTEM_DelayMs(200);
+}
+
 void RADIO_SendEndOfTransmission(void) {
-  if (gEeprom.ROGER == ROGER_MODE_ROGER) {
+  if (gEeprom.ROGER != ROGER_MODE_OFF) {
     BK4819_PlayRoger();
-  } else if (gEeprom.ROGER == ROGER_MODE_MDC) {
+  }
+  if (gEeprom.TAIL_NOTE_ELIMINATION) {
+        RADIO_SendCssTail();
+    RADIO_SetupRegisters(false);
+}
+/* else if (gEeprom.ROGER == ROGER_MODE_MDC) {
     BK4819_PlayRogerMDC();
   }
-  if (gDTMF_CallState == DTMF_CALL_STATE_NONE &&
-      (gCurrentVfo->DTMF_PTT_ID_TX_MODE == PTT_ID_EOT ||
-       gCurrentVfo->DTMF_PTT_ID_TX_MODE == PTT_ID_BOTH)) {
+  if (gCurrentVfo->DTMF_PTT_ID_TX_MODE == PTT_ID_EOT ||
+       gCurrentVfo->DTMF_PTT_ID_TX_MODE == PTT_ID_BOTH) {
     if (gEeprom.DTMF_SIDE_TONE) {
       GPIO_SetBit(&GPIOC->DATA, GPIOC_PIN_AUDIO_PATH);
       gEnableSpeaker = true;
@@ -757,6 +782,6 @@ void RADIO_SendEndOfTransmission(void) {
         gEeprom.DTMF_CODE_INTERVAL_TIME);
     GPIO_ClearBit(&GPIOC->DATA, GPIOC_PIN_AUDIO_PATH);
     gEnableSpeaker = false;
-  }
+  }*/
   BK4819_ExitDTMF_TX(true);
 }

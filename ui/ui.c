@@ -21,53 +21,28 @@
 #include "app/fm.h"
 #endif
 #include "../app/scanner.h"
+#include "../driver/keyboard.h"
 #include "../misc.h"
 #if defined(ENABLE_AIRCOPY)
 #include "aircopy.h"
 #endif
-#include "../apps/abscanner.h"
-#include "../apps/scanlist.h"
-#include "appmenu.h"
-#include "contextmenu.h"
 #include "fmradio.h"
 #include "inputbox.h"
 #include "main.h"
 #include "menu.h"
 #include "scanner.h"
-#include "split.h"
 
 GUI_DisplayType_t gScreenToDisplay;
 GUI_DisplayType_t gRequestDisplayScreen = DISPLAY_INVALID;
-GUI_AppType_t gAppToDisplay = APP_SPLIT;
-
-const App apps[4] = {
-    {""},
-    {"Split"},
-    {"Scanner"},
-    {"Scanlist", NULL, SCANLIST_update, SCANLIST_render, SCANLIST_key},
-    /* {"A to B scanner", ABSCANNER_init, ABSCANNER_update, ABSCANNER_render,
-     ABSCANNER_key}, */
-};
 
 uint8_t gAskForConfirmation;
 bool gAskToSave;
 bool gAskToDelete;
 
-void UI_DisplayApp(void) {
-  if (gAppToDisplay) {
-    if (apps[gAppToDisplay].render) {
-      apps[gAppToDisplay].render();
-    }
-  }
-}
-
 void GUI_DisplayScreen(void) {
   switch (gScreenToDisplay) {
   case DISPLAY_MAIN:
-    if (gAppToDisplay != APP_SCANLIST) {
-      UI_DisplayMain();
-    }
-    UI_DisplayApp();
+    UI_DisplayMain();
     break;
 #if defined(ENABLE_FMRADIO)
   case DISPLAY_FM:
@@ -77,11 +52,8 @@ void GUI_DisplayScreen(void) {
   case DISPLAY_MENU:
     UI_DisplayMenu();
     break;
-  case DISPLAY_CONTEXT_MENU:
-    UI_DisplayContextMenu();
-    break;
-  case DISPLAY_APP_MENU:
-    UI_DisplayAppMenu();
+  case DISPLAY_SCANNER:
+    UI_DisplayScanner();
     break;
 #if defined(ENABLE_AIRCOPY)
   case DISPLAY_AIRCOPY:
@@ -104,8 +76,8 @@ void GUI_SelectNextDisplay(GUI_DisplayType_t Display) {
       gFM_ScanState = FM_SCAN_OFF;
 #endif
       gAskForConfirmation = 0;
-      gDTMF_InputMode = false;
-      gDTMF_InputIndex = 0;
+//      gDTMF_InputMode = false;
+//      gDTMF_InputIndex = 0;
       gF_LOCK = false;
       gAskToSave = false;
       gAskToDelete = false;

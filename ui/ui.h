@@ -17,45 +17,27 @@
 #ifndef GUI_H
 #define GUI_H
 
-#include "../driver/keyboard.h"
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef enum GUI_DisplayType_t {
+enum GUI_DisplayType_t {
   DISPLAY_MAIN = 0x00U,
 #if defined(ENABLE_FMRADIO)
   DISPLAY_FM = 0x01U,
 #endif
   DISPLAY_MENU = 0x02U,
+  DISPLAY_SCANNER = 0x03U,
 #if defined(ENABLE_AIRCOPY)
   DISPLAY_AIRCOPY = 0x04U,
 #endif
   DISPLAY_CONTEXT_MENU = 0x05U,
-  DISPLAY_APP_MENU = 0x06U,
   DISPLAY_INVALID = 0xFFU,
-} GUI_DisplayType_t;
+};
 
-typedef enum GUI_AppType_t {
-  APP_NONE,
-  APP_SPLIT,
-  APP_SCANNER,
-  APP_SCANLIST,
-  APP_AB_SCANNER,
-} GUI_AppType_t;
-
-typedef struct App {
-  const char *name;
-  void (*init)(void);
-  void (*update)(void);
-  void (*render)(void);
-  void (*key)(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld);
-} App;
-
-extern const App apps[4];
+typedef enum GUI_DisplayType_t GUI_DisplayType_t;
 
 extern GUI_DisplayType_t gScreenToDisplay;
 extern GUI_DisplayType_t gRequestDisplayScreen;
-extern GUI_AppType_t gAppToDisplay;
 
 extern uint8_t gAskForConfirmation;
 extern bool gAskToSave;

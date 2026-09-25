@@ -15,6 +15,7 @@
  */
 
 #include "bk4819.h"
+#include "../afc.h"
 #include "../bsp/dp32g030/gpio.h"
 #include "../bsp/dp32g030/portcon.h"
 #include "../driver/gpio.h"
@@ -22,10 +23,11 @@
 #include "../driver/systick.h"
 #include "../driver/uart.h"
 #include "../misc.h"
+#include "settings.h"
 
-static const uint16_t FSK_RogerTable[7] = {
+/*static const uint16_t FSK_RogerTable[7] = {
     0xF1A2, 0x7446, 0x61A4, 0x6544, 0x4E8A, 0xE044, 0xEA84,
-};
+};*/
 
 static uint16_t gBK4819_GpioOutState;
 
@@ -279,6 +281,8 @@ const uint16_t listenBWRegValues[3] = {
     0x4048,             // 12.5
     0b0000000000011000, // was 0x205C, // 6.25
 };
+//stock 0x3028             // 25
+//experimental sat 0x3908
 
 void BK4819_SetFilterBandwidth(BK4819_FilterBandwidth_t Bandwidth) {
   BK4819_WriteRegister(BK4819_REG_43, listenBWRegValues[Bandwidth]);
@@ -321,7 +325,19 @@ void BK4819_SetupSquelch(uint8_t SquelchOpenRSSIThresh,
                          uint8_t SquelchOpenGlitchThresh) {
   BK4819_WriteRegister(BK4819_REG_70, 0);
   BK4819_WriteRegister(BK4819_REG_4D, 0xA000 | SquelchCloseGlitchThresh);
-  BK4819_WriteRegister(BK4819_REG_4E, 0x6F00 | SquelchOpenGlitchThresh);
+  // 0x6f = 0110 1111 meaning the default sql delays from the datasheet are used
+  // (101 and 111)
+  BK4819_WriteRegister(BK4819_REG_4E, // 01 101 11 1 00000000
+#ifdef ENABLE_FASTER_CHANNEL_SCAN
+                                      // faster (but twitchier)
+                       (1u << 14) |     //  1 ???
+                           (1u << 11) | // *5  squelch = open  delay .. 0 ~ 7
+                           (1u << 9) |  // *3  squelch = close delay .. 0 ~ 3
+                           SquelchOpenGlitchThresh); //  0 ~ 255
+#else
+                                      // original (*)
+                       0x6F00 | SquelchOpenGlitchThresh);
+#endif
   BK4819_WriteRegister(BK4819_REG_4F,
                        (SquelchCloseNoiseThresh << 8) | SquelchOpenNoiseThresh);
   BK4819_WriteRegister(BK4819_REG_78,
@@ -348,11 +364,23 @@ void BK4819_SetRegValue(RegisterSpec s, uint16_t v) {
 
 void BK4819_SetModulation(ModulationType type) {
   const uint8_t modTypeReg47Values[] = {1, 7, 5, 9, 4};
+  uint16_t afcConfig;
 
   BK4819_SetAF(modTypeReg47Values[type]);
   BK4819_SetRegValue(afDacGainRegSpec, 0xF);
   BK4819_WriteRegister(0x3D, type == MOD_USB ? 0 : 0x2AAB);
-  BK4819_SetRegValue(afcDisableRegSpec, type != MOD_FM);
+
+  afcConfig = BK4819_ReadRegister(BK4819_REG_73);
+  if (type == MOD_FM) {
+    /* REG_73<13:11>: 000=max range, 001=standard range. */
+    afcConfig &= (uint16_t)~((7U << 11) | (1U << 4));
+    if (gEeprom.AFC_RANGE == AFC_RANGE_STANDARD) {
+      afcConfig |= 1U << 11;
+    }
+  } else {
+    afcConfig |= 1U << 4;
+  }
+  BK4819_WriteRegister(BK4819_REG_73, afcConfig);
 }
 
 void BK4819_RX_TurnOn(void) {
@@ -695,6 +723,60 @@ void BK4819_GenTail(uint8_t Tail) {
   }
 }
 
+void BK4819_PlayCDCSSTail(void)
+{
+    BK4819_GenTail(0);     // CTC134
+    BK4819_WriteRegister(BK4819_REG_51, 0x804A); // 1 0 0 0 0 0 0 0  0  1001010
+}
+
+void BK4819_PlayCTCSSTail(void)
+{
+    #ifdef ENABLE_CTCSS_TAIL_PHASE_SHIFT
+        BK4819_GenTail(2);       // 180° phase shift
+    #else
+        BK4819_GenTail(4);       // 55Hz tone freq
+    #endif
+
+    // REG_51
+    //
+    // <15>  0
+    //       1 = Enable TxCTCSS/CDCSS
+    //       0 = Disable
+    //
+    // <14>  0
+    //       1 = GPIO0Input for CDCSS
+    //       0 = Normal Mode (for BK4819 v3)
+    //
+    // <13>  0
+    //       1 = Transmit negative CDCSS code
+    //       0 = Transmit positive CDCSS code
+    //
+    // <12>  0 CTCSS/CDCSS mode selection
+    //       1 = CTCSS
+    //       0 = CDCSS
+    //
+    // <11>  0 CDCSS 24/23bit selection
+    //       1 = 24bit
+    //       0 = 23bit
+    //
+    // <10>  0 1050HzDetectionMode
+    //       1 = 1050/4 Detect Enable, CTC1 should be set to 1050/4 Hz
+    //
+    // <9>   0 Auto CDCSS Bw Mode
+    //       1 = Disable
+    //       0 = Enable
+    //
+    // <8>   0 Auto CTCSS Bw Mode
+    //       0 = Enable
+    //       1 = Disable
+    //
+    // <6:0> 0 CTCSS/CDCSS Tx Gain1 Tuning
+    //       0   = min
+    //       127 = max
+
+    BK4819_WriteRegister(BK4819_REG_51, 0x904A); // 1 0 0 1 0 0 0 0  0  1001010
+}
+
 void BK4819_EnableCDCSS(void) {
   BK4819_GenTail(0); // CTC134
   BK4819_WriteRegister(BK4819_REG_51, 0x804A);
@@ -839,11 +921,11 @@ void BK4819_PlayRoger(void) {
   BK4819_WriteRegister(BK4819_REG_70, 0xE000);
   BK4819_EnableTXLink();
   SYSTEM_DelayMs(50);
-  BK4819_WriteRegister(BK4819_REG_71, 0x142A);
+  BK4819_WriteRegister(BK4819_REG_71, 5500 + (500 * gEeprom.ROGER));
   BK4819_ExitTxMute();
   SYSTEM_DelayMs(80);
   BK4819_EnterTxMute();
-  BK4819_WriteRegister(BK4819_REG_71, 0x1C3B);
+  BK4819_WriteRegister(BK4819_REG_71, 9500 - (500 * gEeprom.ROGER));
   BK4819_ExitTxMute();
   SYSTEM_DelayMs(80);
   BK4819_EnterTxMute();
@@ -851,10 +933,10 @@ void BK4819_PlayRoger(void) {
   BK4819_WriteRegister(BK4819_REG_30, 0xC1FE);
 }
 
-void BK4819_PlayRogerMDC(void) {
+/*void BK4819_PlayRogerMDC(void) {
   uint8_t i;
 
-  BK4819_SetAF(BK4819_AF_MUTE);
+//  BK4819_SetAF(BK4819_AF_MUTE);
   BK4819_WriteRegister(
       BK4819_REG_58,
       0x37C3); // FSK Enable, RX Bandwidth FFSK1200/1800, 0xAA or 0x55 Preamble,
@@ -886,7 +968,7 @@ void BK4819_PlayRogerMDC(void) {
   BK4819_WriteRegister(BK4819_REG_59, 0x0068);
   BK4819_WriteRegister(BK4819_REG_70, 0x0000);
   BK4819_WriteRegister(BK4819_REG_58, 0x0000);
-}
+}*/
 
 void BK4819_Enable_AfDac_DiscMode_TxDsp(void) {
   BK4819_WriteRegister(BK4819_REG_30, 0x0000);

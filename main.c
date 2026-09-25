@@ -38,7 +38,6 @@
 #include "radio.h"
 #include "settings.h"
 #include "ui/lock.h"
-#include "ui/menu.h"
 #include "ui/welcome.h"
 #include "version.h"
 
@@ -59,7 +58,8 @@ void Main(void) {
                         SYSCON_DEV_CLK_GATE_SPI0_BITS_ENABLE |
                         SYSCON_DEV_CLK_GATE_SARADC_BITS_ENABLE |
                         SYSCON_DEV_CLK_GATE_CRC_BITS_ENABLE |
-                        SYSCON_DEV_CLK_GATE_AES_BITS_ENABLE;
+                        SYSCON_DEV_CLK_GATE_AES_BITS_ENABLE |
+						SYSCON_DEV_CLK_GATE_PWM_PLUS0_BITS_ENABLE;
 
   SYSTICK_Init();
   BOARD_Init();
@@ -72,8 +72,8 @@ void Main(void) {
   // Not implementing authentic device checks
 
   memset(&gEeprom, 0, sizeof(gEeprom));
-  memset(gDTMF_String, '-', sizeof(gDTMF_String));
-  gDTMF_String[14] = 0;
+//  memset(gDTMF_String, '-', sizeof(gDTMF_String));
+//  gDTMF_String[14] = 0;
 
   BK4819_Init();
   BOARD_ADC_GetBatteryInfo(&gBatteryCurrentVoltage, &gBatteryCurrent);
@@ -95,7 +95,7 @@ void Main(void) {
 #endif
   if (!gChargingWithTypeC && !gBatteryDisplayLevel) {
     FUNCTION_Select(FUNCTION_POWER_SAVE);
-    GPIO_ClearBit(&GPIOB->DATA, GPIOB_PIN_BACKLIGHT);
+    BACKLIGHT_TurnOff();
     gReducedService = true;
   } else {
     BOOT_Mode_t BootMode;
@@ -103,7 +103,8 @@ void Main(void) {
     UI_DisplayWelcome();
     BACKLIGHT_TurnOn();
     SYSTEM_DelayMs(1000);
-    gMenuListCount = MENU_ITEMS_COUNT - 6;
+	AUDIO_PlayBeep(BEEP_500HZ_60MS_DOUBLE_BEEP);
+    gMenuListCount = 50;
 
     BootMode = BOOT_GetMode();
     if (gEeprom.POWER_ON_PASSWORD < 1000000) {
@@ -113,8 +114,7 @@ void Main(void) {
     }
 
     BOOT_ProcessMode(BootMode);
-
-    gUpdateStatus = true;
+	gUpdateStatus = true;
   }
 
   while (1) {

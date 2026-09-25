@@ -237,7 +237,7 @@ unsigned int max_index = ARRAY_SIZE(gain_table) - 1;
 
 #ifndef ENABLE_AM_FIX_TEST1
 // -89dBm, any higher and the AM demodulator starts to saturate/clip/distort
-const int16_t desired_rssi = (-89 + 160) * 2;
+//const int16_t desired_rssi = (-89 + 160) * 2;
 #endif
 
 void AM_fix_init(void) { // called at boot-up
@@ -269,6 +269,7 @@ void AM_fix_reset(const int vfo) { // reset the AM fixer upper
 void AM_fix_10ms(const int vfo) {
   int16_t diff_dB;
   int16_t rssi;
+  int16_t desired_rssi = (-amft + 160) * 2;
 
   switch (gCurrentFunction) {
   case FUNCTION_TRANSMIT:
@@ -290,7 +291,9 @@ void AM_fix_10ms(const int vfo) {
 
   { // sample the current RSSI level
     // average it with the previous rssi (a bit of noise/spike immunity)
+
     const int16_t new_rssi = BK4819_GetRSSI();
+
     rssi = (prev_rssi[vfo] > 0) ? (prev_rssi[vfo] + new_rssi) / 2 : new_rssi;
     prev_rssi[vfo] = new_rssi;
   }
@@ -305,7 +308,8 @@ void AM_fix_10ms(const int vfo) {
     hold_counter[vfo]--;
 
   // dB difference between actual and desired RSSI level
-  diff_dB = (rssi - desired_rssi) / 2;
+//  diff_dB = (rssi - desired_rssi) / 2;
+  diff_dB = (rssi - 5 - desired_rssi) / 2;
 
   if (diff_dB > 0) { // decrease gain
 

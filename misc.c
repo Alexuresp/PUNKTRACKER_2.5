@@ -116,6 +116,17 @@ uint8_t gPttDebounceCounter;
 uint8_t gMenuListCount;
 uint8_t gBackupCROSS_BAND_RX_TX;
 uint8_t gScanDelay;
+uint8_t NextCh;
+uint8_t amft = 89;
+bool slowsc = false;
+/*bool Ring = false;
+uint8_t RingCountdown = 0;*/
+#if defined(ENABLE_MEMSKIP)
+/*uint16_t SkipE = 174;
+uint16_t EndE = 220;
+uint16_t SkipF = 58;
+uint16_t EndF = 118;*/
+#endif
 #if defined(ENABLE_AIRCOPY)
 uint8_t gAircopySendCountdown;
 #endif
@@ -139,6 +150,8 @@ uint8_t gAbrTxRx;
 volatile bool gFlagTteComplete;
 #if defined(ENABLE_FMRADIO)
 volatile bool gScheduleFM;
+bool fmoff = false;
+uint8_t fmofft = 0;
 #endif
 
 uint16_t gCurrentRSSI;

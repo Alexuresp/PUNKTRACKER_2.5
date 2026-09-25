@@ -1,0 +1,39 @@
+name: Build firmware
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install ARM GCC
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '10.3-2021.10'
+
+      - name: Install Python dependencies
+        run: python3 -m pip install crcmod
+
+      - name: Build
+        run: make -j2
+
+      - name: Firmware size
+        run: arm-none-eabi-size firmware
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: PUNKTRACKER-2.5-firmware
+          path: |
+            firmware.bin
+            firmware.packed.bin
+          if-no-files-found: error
+

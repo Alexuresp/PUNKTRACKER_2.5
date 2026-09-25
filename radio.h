@@ -59,16 +59,10 @@ enum STEP_Setting_t {
   STEP_10_0kHz,
   STEP_12_5kHz,
   STEP_25_0kHz,
-  STEP_100_0kHz,
+  STEP_50_0kHz,
 };
 
-typedef enum UpconverterTypes {
-    UPCONVERTER_OFF,
-    UPCONVERTER_50M,
-    UPCONVERTER_125M,
-} UpconverterTypes;
-
-extern const char *modulationTypeOptions[5];
+extern const char *modulationTypeOptions[3];
 extern const char *vfoStateNames[];
 extern const char *powerNames[];
 extern const char *bwNames[3];
@@ -111,7 +105,7 @@ typedef struct VFO_Info_t {
   uint32_t FREQUENCY_OF_DEVIATION;
   uint16_t StepFrequency;
   uint8_t CHANNEL_SAVE;
-  uint8_t OFFSET_DIR;
+  uint8_t FREQUENCY_DEVIATION_SETTING;
   uint8_t SquelchOpenRSSIThresh;
   uint8_t SquelchOpenNoiseThresh;
   uint8_t SquelchCloseGlitchThresh;
@@ -144,7 +138,6 @@ extern DCS_CodeType_t gSelectedCodeType;
 extern uint8_t gSelectedCode;
 
 extern STEP_Setting_t gStepSetting;
-extern UpconverterTypes gUpconverter;
 
 extern VfoState_t VfoState[2];
 
