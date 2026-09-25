@@ -364,6 +364,7 @@ void BK4819_SetRegValue(RegisterSpec s, uint16_t v) {
 
 void BK4819_SetModulation(ModulationType type) {
   const uint8_t modTypeReg47Values[] = {1, 7, 5, 9, 4};
+  enum { AFC_SPEED_BALANCED = 15 };
   uint16_t afcConfig;
 
   BK4819_SetAF(modTypeReg47Values[type]);
@@ -372,11 +373,13 @@ void BK4819_SetModulation(ModulationType type) {
 
   afcConfig = BK4819_ReadRegister(BK4819_REG_73);
   if (type == MOD_FM) {
-    /* REG_73<13:11>: 000=max range, 001=standard range. */
-    afcConfig &= (uint16_t)~((7U << 11) | (1U << 4));
+    /* REG_73<13:11>: range. REG_73<10:5>: loop time constant; a lower
+     * value reacts faster.  The chip default (52) needs many seconds. */
+    afcConfig &= (uint16_t)~((7U << 11) | (63U << 5) | (1U << 4));
     if (gEeprom.AFC_RANGE == AFC_RANGE_STANDARD) {
       afcConfig |= 1U << 11;
     }
+    afcConfig |= AFC_SPEED_BALANCED << 5;
   } else {
     afcConfig |= 1U << 4;
   }

@@ -82,9 +82,9 @@ void AFC_Process10ms(void)
     Sample = -Limit;
   }
 
-  /* REG_6D is already filtered by the hardware AFC loop.  A light software
-   * filter keeps speech modulation and the last display digit from jittering. */
-  Filtered = sOffsetValid ? ((int32_t)sOffsetHz * 3 + Sample) / 4 : Sample;
+  /* REG_6D is already filtered by the hardware AFC loop.  Average only two
+   * readings so Doppler changes remain responsive while the display is calm. */
+  Filtered = sOffsetValid ? ((int32_t)sOffsetHz + Sample) / 2 : Sample;
   DisplayOffset =
       (int16_t)((Filtered >= 0 ? Filtered + 5 : Filtered - 5) / 10 * 10);
 
