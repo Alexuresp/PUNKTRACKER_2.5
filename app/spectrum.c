@@ -57,6 +57,7 @@ uint32_t loot[100] = {0};
 uint8_t loi = 0;
 bool ltck = false;
 uint8_t iol = 0; 
+static uint16_t stillRssiTriggerLevel = 120;
 uint16_t p_rssi=0;
 bool RScan = false;
 
@@ -558,10 +559,12 @@ static void UpdateRssiTriggerLevel(bool inc) {
 }
 
 static void UpdateRssiTriggerStill(bool inc) {
-  if (inc)
-      settings.rssiTriggerLevel += 2;
-  else
-      settings.rssiTriggerLevel -= 2;
+  if (inc && stillRssiTriggerLevel <= 509) {
+    stillRssiTriggerLevel += 2;
+  } else if (!inc && stillRssiTriggerLevel >= 2) {
+    stillRssiTriggerLevel -= 2;
+  }
+  settings.rssiTriggerLevel = stillRssiTriggerLevel;
   redrawScreen = true;
   SYSTEM_DelayMs(10);
 }
@@ -1197,7 +1200,7 @@ static void OnKeyDown(uint8_t key) {
 //    TuneToPeak();
 	iol = loi;
 	SetF(memf, true);
-    settings.rssiTriggerLevel = 120;
+    settings.rssiTriggerLevel = stillRssiTriggerLevel;
 	monitorMode = false;
 #ifdef ENABLE_ALL_REGISTERS
     hiddenMenuState = 1;
