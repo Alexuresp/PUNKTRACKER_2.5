@@ -414,6 +414,16 @@ void APP_StartListening(FUNCTION_Type_t Function, const bool resetAmFix) {
   gUpdateStatus = true;
 }
 
+static void APP_SetupRegistersPreservingMonitor(void)
+{
+  const bool WasMonitor = gCurrentFunction == FUNCTION_MONITOR;
+
+  RADIO_SetupRegisters(!WasMonitor);
+  if (WasMonitor) {
+    APP_StartListening(FUNCTION_MONITOR, false);
+  }
+}
+
 void APP_SetFrequencyByStep(VFO_Info_t *pInfo, int8_t Step) {
   uint32_t Frequency;
 
@@ -1389,7 +1399,7 @@ static void APP_ProcessKey(KEY_Code_t Key, bool bKeyPressed, bool bKeyHeld) {
                            gFlagSaveChannel);
       gFlagSaveChannel = false;
       RADIO_ConfigureChannel(gEeprom.TX_VFO, 1);
-      RADIO_SetupRegisters(true);
+      APP_SetupRegistersPreservingMonitor();
       GUI_SelectNextDisplay(DISPLAY_MAIN);
     }
   } else {
@@ -1658,7 +1668,7 @@ Skip:
 
   if (gFlagReconfigureVfos) {
     RADIO_SelectVfos();
-    RADIO_SetupRegisters(true);
+    APP_SetupRegistersPreservingMonitor();
 //    gDTMF_AUTO_RESET_TIME = 0;
 //    gDTMF_CallState = DTMF_CALL_STATE_NONE;
 //    gDTMF_TxStopCountdown = 0;
