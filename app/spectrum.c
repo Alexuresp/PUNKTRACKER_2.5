@@ -691,19 +691,20 @@ static void UpdateCurrentFreq(bool inc) {
 }
 
 static void UpdateLootFreqStill(bool inc) {
-	uint32_t f = fMeasure;
-  if (inc && iol < 100) {
-	iol++;
-    f = loot[iol];
-  } else if (!inc && iol > 0) {
-	iol--;
-    f = loot[iol];
-  }
-  if (f > 0 && iol > 0) {
-  SetF(f, false);
+  if (loi == 0) {
+    iol = 0;
+    SetF(memf, false);
   } else {
-	iol = loi + 1;
-	SetF(memf, false);
+    if (iol < 1 || iol > loi) {
+      iol = loi;
+    }
+
+    if (inc) {
+      iol = iol >= loi ? 1 : iol + 1;
+    } else {
+      iol = iol <= 1 ? loi : iol - 1;
+    }
+    SetF(loot[iol], false);
   }
   settings.frequencyChangeStep = GetBW();
   SYSTEM_DelayMs(10);
@@ -1191,10 +1192,10 @@ static void OnKeyDown(uint8_t key) {
 	if (PageScan == true) {		
     PageScan = false;
 	RScan = true;
-	}
+    }
     SetState(STILL);
 //    TuneToPeak();
-	iol = loi + 1;
+	iol = loi;
 	SetF(memf, true);
     settings.rssiTriggerLevel = 130;
 	monitorMode = false;
