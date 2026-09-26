@@ -1197,7 +1197,7 @@ static void OnKeyDown(uint8_t key) {
 //    TuneToPeak();
 	iol = loi;
 	SetF(memf, true);
-    settings.rssiTriggerLevel = 130;
+    settings.rssiTriggerLevel = 120;
 	monitorMode = false;
 #ifdef ENABLE_ALL_REGISTERS
     hiddenMenuState = 1;
