@@ -1197,7 +1197,7 @@ static void OnKeyDown(uint8_t key) {
 	iol = loi + 1;
 	SetF(memf, true);
     settings.rssiTriggerLevel = 130;
-	monitorMode = true;
+	monitorMode = false;
 #ifdef ENABLE_ALL_REGISTERS
     hiddenMenuState = 1;
     redrawStatus = true;
