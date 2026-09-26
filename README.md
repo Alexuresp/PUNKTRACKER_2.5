@@ -1,23 +1,71 @@
-# Open reimplementation of the Quan Sheng UV K5 v2.1.27 firmware
-Modified by Lightbringer source code of PUNKTRACKER II
+# PUNKTRACKER 2.5 for Quan Sheng UV-K5
 
-The FM receiver includes automatic Doppler correction.  While a signal is
-being received, the BK4819 frequency counter validates the carrier position,
-retunes RX without changing the stored channel or TX frequency, and shows the
-current `AFC:+/-...` correction in hertz on the main screen.  The displayed
-value is always relative to the stored RX channel frequency, so it can also be
-used to observe a transmitter's characteristic frequency error.
+Open firmware based on the Quan Sheng UV-K5 v2.1.27 reimplementation and the
+PUNKTRACKER II sources modified by Lightbringer.
 
-The `AFC` menu selects the correction range: `STD 7K` (+/-7 kHz) or
-`MAX 10K` (+/-10 kHz).  The selection is stored in EEPROM.
+## Changes in this fork / Изменения в этой версии
+
+### Hardware AFC for Doppler correction / Аппаратный AFC
+
+FM reception uses the BK4819 hardware AFC to capture and track a signal whose
+carrier is offset from the selected receiver frequency.  This is useful for
+LEO satellites such as the ISS, where Doppler shift changes during a pass.
+The stored RX channel and TX frequency are not modified.
+
+The main screen shows `AFC:+/-...` in hertz while a signal is actually being
+received or Monitor is active.  The value is read from the BK4819 AFC register
+and is relative to the selected RX frequency.  It can therefore also show the
+characteristic frequency error of another transmitter.  The indication is
+hidden before squelch opens so that receiver noise does not make it flicker.
+
+The `AFC` menu has two capture ranges:
+
+* `STD 7K` — up to approximately ±7 kHz.
+* `MAX 10K` — up to approximately ±10 kHz; recommended for ISS reception.
+
+The selected range is stored in EEPROM.  The AFC display is positioned after
+the bandwidth indicator without overlapping `25k`, `12.5k`, or `6.25k`.
+
+При приёме FM аппаратный AFC микросхемы BK4819 автоматически захватывает и
+сопровождает сигнал со смещением частоты. На основном экране во время приёма
+отображается текущее отклонение `AFC:+/-...` в герцах. Для МКС рекомендуется
+режим `MAX 10K`; для обычной работы доступен `STD 7K`.
+
+### Receive audio attenuator / Аттенюатор НЧ
+
+The `AF Att` menu reduces the complete received audio signal before the
+radio's analog volume control.  It makes the low end of a volume potentiometer
+with an abrupt response easier to adjust.
+
+Available levels are:
+
+* `OFF` — 0 dB (default).
+* `-6 dB`.
+* `-12 dB`.
+* `-18 dB`.
+
+The attenuator uses the dedicated BK4819 `AF Rx Gain-1` stage, preserves the
+factory `VOLUME_GAIN` calibration, and is stored in EEPROM.  The spectrum
+scanner now changes only the DAC field of `REG_48`, so opening or scanning a
+signal no longer clears `AF Att` or overwrites the calibrated receive gain.
+
+Пункт `AF Att` ослабляет весь принимаемый НЧ-сигнал до аналоговой ручки
+громкости. Заводская калибровка не изменяется. Для слишком резкой ручки
+рекомендуется начать с `-12 dB`, при необходимости выбрать `-18 dB`.
+
+### Firmware builds
+
+Every push is built by GitHub Actions.  The downloadable artifact contains
+both `firmware.bin` and `firmware.packed.bin`.  Use `firmware.packed.bin` with
+the official updater.
+
+## Upstream project
 
 This repository is a preservation project of the UV K5 v2.1.27 firmware.
 It is dedicated to understanding how the radio works and help developers making their own customisations/fixes/etc.
 It is by no means fully understood or has all variables/functions properly named, as this is best effort only.
-As a result, this repository will not include any customisations or improvements over the original firmware.
-
-You can find an alternate branch called "fixes" that contains fixes for real bugs present in the original firmware.
-This branch will also accumulate fixes/improvements from newer releases by QS (for example v2.01.31).
+This fork adds the features documented above while retaining the upstream
+license and credits.
 
 For improved/better firmware and new features, you can find the following repositories by other collaborators:
 
