@@ -762,7 +762,9 @@ static void ToggleListeningBW() {
     ++settings.listenBw;
   }
   BK4819_SetFilterBandwidth(settings.listenBw);
-  RelaunchScan();
+  if (currentState == SPECTRUM) {
+    RelaunchScan();
+  }
   AutoPreset = false;
   redrawScreen = true;
 }
