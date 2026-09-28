@@ -205,10 +205,10 @@ void UI_DisplayMain(void) {
         if (IS_MR_CHANNEL(screenCH)) {
           const uint8_t ATTR = gMR_ChannelAttributes[screenCH];
           if (ATTR & MR_CH_SCANLIST1) {
-            UI_PrintStringSmallBold("1", 116, 0, Line + 2);
+            UI_PrintStringSmallest("1", 117, lineSubY, false, true);
           }
           if (ATTR & MR_CH_SCANLIST2) {
-            UI_PrintStringSmallBold("2", 122, 0, Line + 2);
+            UI_PrintStringSmallest("2", 123, lineSubY, false, true);
           }
         }
 
