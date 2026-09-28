@@ -205,20 +205,10 @@ void UI_DisplayMain(void) {
         if (IS_MR_CHANNEL(screenCH)) {
           const uint8_t ATTR = gMR_ChannelAttributes[screenCH];
           if (ATTR & MR_CH_SCANLIST1) {
-                        gFrameBuffer[Line+2][116] = 0b00001111;
-                        gFrameBuffer[Line+2][117] = 0b00001111;
-                        gFrameBuffer[Line+2][118] = 0b00001111;
-                        gFrameBuffer[Line+2][119] = 0b00001111;
-                        gFrameBuffer[Line+2][120] = 0b00001111;
-            // UI_PrintStringSmallest("s1", 112, lineSubY, false, true);
+            UI_PrintStringSmallBold("1", 116, 0, Line + 2);
           }
           if (ATTR & MR_CH_SCANLIST2) {
-                        gFrameBuffer[Line+2][122] = 0b00001111;
-                        gFrameBuffer[Line+2][123] = 0b00001111;
-                        gFrameBuffer[Line+2][124] = 0b00001111;
-                        gFrameBuffer[Line+2][125] = 0b00001111;
-                        gFrameBuffer[Line+2][126] = 0b00001111;
-            // UI_PrintStringSmallest("s2", 120, lineSubY, false, true);
+            UI_PrintStringSmallBold("2", 122, 0, Line + 2);
           }
         }
 
